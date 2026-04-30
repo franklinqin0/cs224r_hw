@@ -132,7 +132,11 @@ class PPOAgent:
         for t in reversed(range(T)):
 
             ### YOUR CODE HERE ###
-
+            # compute the TD residual
+            delta = rewards[t] + discounts[t] * next_values[t] * (1 - dones[t]) - values[t]
+            # accumulate the GAE advantage using the running variable `gae`
+            gae = delta + discounts[t] * self.gae_lambda * gae
+            advantages[t] = gae
 
             ### YOUR CODE HERE ###
 
@@ -193,8 +197,12 @@ class PPOAgent:
 
 
             ### YOUR CODE HERE ###
-            
-                        
+            values_all = self.critic(obs_all).squeeze(-1)
+            next_values_all = self.critic(next_obs_all).squeeze(-1)
+            advantages_all, returns_all = self.compute_gae(
+                rew_all, values_all, next_values_all, disc_all, done_all
+            )
+
             ### YOUR CODE HERE ###
 
 
@@ -238,10 +246,10 @@ class PPOAgent:
                 # Clipped surrogate (PPO-Clip objective) 
 
                 ### YOUR CODE HERE ###
-
-                
-                
-                
+                ratio = torch.exp(new_log_prob - olp_ep)
+                surr1 = ratio * adv_ep
+                surr2 = torch.clamp(ratio, 1.0 - self.clip_eps, 1.0 + self.clip_eps) * adv_ep
+                policy_loss = -torch.min(surr1, surr2).mean()
 
                 ### YOUR CODE HERE ###
 

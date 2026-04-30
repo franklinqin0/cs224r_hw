@@ -2,8 +2,10 @@ import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 import os
+import platform
 os.environ['MKL_SERVICE_FORCE_INTEL'] = '1'
-os.environ['MUJOCO_GL'] = 'egl'
+if platform.system() != 'Darwin':
+    os.environ['MUJOCO_GL'] = 'egl'
 os.environ["WANDB_DISABLE_CODE"] = "1"
 
 from pathlib import Path
@@ -127,7 +129,8 @@ class Workspace:
         self._demo_iter = None
 
         from distutils.dir_util import copy_tree
-        copy_tree("/root/demos/",
+        demo_src = Path(__file__).resolve().parent / 'demos'
+        copy_tree(str(demo_src),
                   str(self.work_dir / 'demos'))
 
         # On policy rollout buffer
@@ -177,6 +180,7 @@ class Workspace:
                 step += 1
 
             total_success += time_step.reward > 0.0
+            self.video_recorder.save(f'{self.global_frame}.mp4')
             episode += 1
 
         with self.logger.log_and_dump_ctx(self.global_frame, ty='eval') as log:

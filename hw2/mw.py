@@ -1,9 +1,8 @@
 from collections import deque, OrderedDict
 from typing import Any, NamedTuple
 
-import gym
+import gymnasium as gym
 import dm_env
-import mujoco_py
 import numpy as np
 from dm_env import StepType, specs
 
@@ -12,19 +11,15 @@ from dm_env import StepType, specs
 class MetaWorldEnv:
   """Wrap a Meta-World task with fixed reset, sparse rewards, and action repeat."""
 
-  def __init__(self, name="hammer-v2", action_repeat=2, duration = 50):
+  def __init__(self, name="hammer-v3", action_repeat=2, duration = 50):
       """Create the underlying Meta-World environment and configure rollout limits."""
-      from metaworld.envs.mujoco.env_dict import ALL_V2_ENVIRONMENTS
-      render_params={"elevation": -22.5,
-                     "azimuth": 15,
-                     "distance": 0.75,
-                     "lookat": np.array([-0.15, 0.60, 0.25])}
-      
-      self._env = ALL_V2_ENVIRONMENTS[name]()
+      import metaworld
+      ml1 = metaworld.ML1(name)
+      env_cls = ml1.train_classes[name]
+      self._env = env_cls(render_mode='rgb_array')
+      task = ml1.train_tasks[0]
+      self._env.set_task(task)
       self._env.max_path_length = np.inf
-      self._env._freeze_rand_vec = False
-      self._env._partially_observable = False
-      self._env._set_task_called = True
 
       self.hand_init_pose = self._env.hand_init_pos.copy()
       self.hand_init_pose = np.array([0.1 , 0.5, 0.30])
@@ -48,10 +43,12 @@ class MetaWorldEnv:
   def step(self, action):
     """Repeat one action, collapse the reward to success, and enforce max duration."""
     reward = 0.0
+    done = False
     for _ in range(self.action_repeat):
-        state, rew, done, info = self._env.step(action)
+        state, rew, terminated, truncated, info = self._env.step(action)
         state = state.astype(self._env.observation_space.dtype)
         reward += rew
+        done = terminated or truncated
         if done:
             break
     reward = 1.0 * info['success']
@@ -63,16 +60,16 @@ class MetaWorldEnv:
   def reset(self):
     """Randomize the hand start pose and return the warmed-up initial observation."""
     self._env.hand_init_pos = self.hand_init_pose + 0.03 * np.random.normal(size = 3)
-    _ = self._env.reset()
+    _, _ = self._env.reset()
     for i in range(10):
-        state,_,_,_ = self._env.step(np.zeros(self.action_space.shape))
+        state, _, _, _, _ = self._env.step(np.zeros(self.action_space.shape))
         state = state.astype(self._env.observation_space.dtype)
     self._step = 0
     return state
   
-  def render(self, mode ='rgb_array', width = 84, height = 84):
-      """Stub render method kept for interface compatibility."""
-      return
+  def render(self, mode='rgb_array', width=256, height=256):
+      """Render the environment to an RGB array."""
+      return self._env.render()
       
 
 

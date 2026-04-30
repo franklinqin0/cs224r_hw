@@ -117,12 +117,18 @@ def choose_action(
 
 
     ### YOUR CODE HERE ###
-    pass
+    prob = np.random.rand()
+    if prob < epsilon:
+        return int(rng.integers(0, 4))
+    else:
+        return greedy_action(q_table, state)
+
     ### YOUR CODE HERE ###
 
 def greedy_action(q_table: np.ndarray, state: tuple[int, int]) -> int:
     ### YOUR CODE HERE ###
-    pass
+    action_vals = action_values(q_table, state) # Q values for all actions
+    return int(np.argmax(action_vals))
     ### YOUR CODE HERE ###
 
 
@@ -144,7 +150,14 @@ def train_q_learning(scenario: Scenario) -> tuple[np.ndarray, GridWorld]:
 
 
             ### YOUR CODE HERE ###
-            pass
+            action = choose_action(q_table, state, epsilon, rng)
+            next_state, reward, done = env.step(state, action)
+            q_table[state[1], state[0], action] += scenario.alpha * (
+                reward + scenario.gamma * np.max(action_values(q_table, next_state)) - q_table[state[1], state[0], action]
+            )
+            state = next_state
+            if done:
+                break
             ### YOUR CODE HERE ###
 
 
